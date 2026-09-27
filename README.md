@@ -6,7 +6,7 @@ Swagger/OpenAPI integration for [Hyperf](https://hyperf.io). The package uses PH
 
 - PHP 8.2 or later
 - Hyperf 3.2
-- `zircote/swagger-php` 4.x (the compatibility test path also covers 6.x)
+- `zircote/swagger-php` 6.x (the compatibility matrix also covers 4.x)
 
 ## Installation
 
@@ -139,7 +139,7 @@ COMPOSER=composer.swagger-php-6.json composer update
 vendor/bin/phpunit -c phpunit.xml.dist
 ```
 
-The 4.x path is retained for existing users. The 6.x path verifies the updated processor pipeline and attribute constructor compatibility.
+The 6.x path is the default dependency. The 4.x path is retained as a compatibility test and verifies backward compatibility with existing installations.
 
 ## License
 
