@@ -11,7 +11,7 @@ Swagger/OpenAPI integration for [Hyperf](https://hyperf.io). The package uses PH
 ## Installation
 
 ```bash
-composer require hyperf/swagger
+composer require ussaaass/hyperf-swagger
 ```
 
 If request validation is needed, install Hyperf Validation as well:
