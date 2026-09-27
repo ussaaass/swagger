@@ -17,6 +17,7 @@ use Hyperf\Contract\ConfigInterface;
 use Hyperf\Swagger\Processor\BuildPathsProcessor;
 use InvalidArgumentException;
 use OpenApi\Processors;
+use Symfony\Component\Yaml\Yaml;
 
 class Generator
 {
@@ -39,9 +40,10 @@ class Generator
         $servers = (array) $this->config->get('swagger.server', []);
 
         $generator = new \OpenApi\Generator();
-        $openapi = $generator->setAliases(\OpenApi\Generator::DEFAULT_ALIASES)
-            ->setNamespaces(\OpenApi\Generator::DEFAULT_NAMESPACES)
-            ->setProcessors([
+        if (method_exists($generator, 'setProcessors')) {
+            $generator->setAliases(\OpenApi\Generator::DEFAULT_ALIASES)
+                ->setNamespaces(\OpenApi\Generator::DEFAULT_NAMESPACES)
+                ->setProcessors([
                 new Processors\DocBlockDescriptions(),
                 new Processors\MergeIntoOpenApi(),
                 new Processors\MergeIntoComponents(),
@@ -59,8 +61,19 @@ class Generator
                 new Processors\OperationId(),
                 new Processors\CleanUnmerged(),
                 ...$userProcessors,
-            ])
-            ->generate($paths, validate: false);
+                ]);
+        } else {
+            // swagger-php 6 replaced setProcessors() with a configurable pipeline.
+            $generator->withProcessorPipeline(static function (object $pipeline) use ($userProcessors): void {
+                $pipeline->remove(Processors\BuildPaths::class);
+                $pipeline->insert(new BuildPathsProcessor(), Processors\AugmentParameters::class);
+                foreach ($userProcessors as $processor) {
+                    $pipeline->add($processor);
+                }
+            });
+        }
+
+        $openapi = $generator->generate($paths, validate: false);
 
         $jsonArray = Json::decode($openapi->toJson());
         $paths = $jsonArray['paths'] ?? [];
@@ -84,12 +97,24 @@ class Generator
         }
 
         $path = $this->config->get('swagger.json_dir', BASE_PATH . '/storage/swagger');
+        $yamlPath = $this->config->get('swagger.yaml_dir');
 
         foreach ($result as $serverName => $json) {
-            if (! is_dir($path)) {
+            if ($path !== null && ! is_dir($path)) {
                 @mkdir($path, 0755, true);
             }
-            file_put_contents(rtrim($path, '/') . '/' . $serverName . '.json', Json::encode($json));
+            if ($path !== null) {
+                file_put_contents(rtrim($path, '/') . '/' . $serverName . '.json', Json::encode($json));
+            }
+            if ($yamlPath !== null) {
+                if (! is_dir($yamlPath)) {
+                    @mkdir($yamlPath, 0755, true);
+                }
+                file_put_contents(
+                    rtrim($yamlPath, '/') . '/' . $serverName . '.yaml',
+                    Yaml::dump($json, 20, 2, Yaml::DUMP_OBJECT_AS_MAP)
+                );
+            }
         }
     }
 }
